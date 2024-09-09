@@ -1,8 +1,8 @@
 # %%
 import pandas as pd
-import numpy as np
 import yfinance as yf
 from statsmodels.tsa.seasonal import seasonal_decompose
+import numpy as np
 
 # %%
 def get_data_ticker(ticker, period='5y', rolling=1):
@@ -11,20 +11,9 @@ def get_data_ticker(ticker, period='5y', rolling=1):
     data_hist['prev-day-1'] = data_hist['Close'].rolling(rolling).mean().shift(1)
     data_hist['prev-day-2'] = data_hist['Close'].rolling(rolling).mean().shift(2)
     data_hist['prev-day-3'] = data_hist['Close'].rolling(rolling).mean().shift(3)
-    data_hist['ma_5'] = data_hist['Close'].rolling(21).mean()
-    data_hist['ma_21'] = data_hist['Close'].rolling(21).mean()
-    
-    weights = pd.Series(range(1, 22))
-    data_hist['wma_21'] = data_hist['Close'].rolling(21).apply(lambda prices: np.dot(prices, weights) / weights.sum(), raw=True)
-
-
-    delta = data_hist['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(14).mean()  # Ganhos médios
-    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()  # Perdas médias
-    rs = gain / loss  # Strength relativa
-    data_hist['rsi'] = 100 - (100 / (1 + rs))
+    data_hist['mm_5'] = data_hist['Close'].rolling(5).mean()
+    data_hist['mm_21'] = data_hist['Close'].rolling(21).mean()
     data_hist = data_hist.dropna()
-
     data_hist['tomorrow'] = data_hist['Close'].rolling(rolling).mean().shift(-1)
 
     return data_hist
@@ -37,4 +26,52 @@ def dias_uteis_entre_datas(start_date,end_date):
 
 # %%
 def decompor_sinal(y, period):
-    return seasonal_decompose(y, period=period)
+    return seasonal_decompose(y, period=period, extrapolate_trend='freq')
+
+
+# %%
+def split_df_X_y(df_model):
+    dates = df_model.index
+    df_as_np = df_model.to_numpy()
+    X = df_as_np[:,:-1]
+
+    X = X.reshape(len(dates), X.shape[1], 1)
+    y = df_as_np[:,-1]
+
+    return (dates, X.astype(np.float32), y.astype(np.float32))
+
+# %%
+def find_repetition(sequence):
+    length = len(sequence)
+    
+    # Testar todos os tamanhos possíveis de repetição
+    for size in range(1, length // 2 + 1):
+        pattern = sequence[:size]
+        
+        # Cria uma sequência repetida do tamanho do array original
+        repeated = np.tile(pattern, length // size)
+        
+        # Verifica se a repetição é igual à sequência original
+        if np.array_equal(repeated, sequence[:len(repeated)]):
+            return pattern
+            
+    return None
+
+
+# %%
+def obter_sazonalidade_periodo(qtdDias, sazonalidade):
+    padraoSazonalidade = find_repetition(sazonalidade)
+    
+    tamanhoSazonalidade = len(padraoSazonalidade)
+    
+    qtdCiclosCompletos = qtdDias//tamanhoSazonalidade
+
+    posicaoFinal = qtdDias%tamanhoSazonalidade
+    
+    cicloSazonal = []
+    for ciclo in range(qtdCiclosCompletos):
+        cicloSazonal.extend(padraoSazonalidade)
+
+    cicloSazonal.extend(padraoSazonalidade[:posicaoFinal])
+
+    return cicloSazonal
