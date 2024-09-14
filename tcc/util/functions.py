@@ -25,8 +25,8 @@ def dias_uteis_entre_datas(start_date,end_date):
     return date_list
 
 # %%
-def decompor_sinal(y, period):
-    return seasonal_decompose(y, period=period, extrapolate_trend='freq')
+def decompor_sinal(y, period, two_sided=False):
+    return seasonal_decompose(y, period=period, two_sided=two_sided, extrapolate_trend='freq')
 
 
 # %%
