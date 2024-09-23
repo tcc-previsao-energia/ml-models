@@ -5,7 +5,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 import numpy as np
 
 # %%
-def get_data_ticker(ticker, period='5y', rolling=1):
+def get_data_ticker(ticker, period='5y', rolling=1, dropna=True):
     data_orig = yf.download(ticker, period=period)
     data_hist = pd.DataFrame(data_orig['Close'])
     data_hist['prev-day-1'] = data_hist['Close'].rolling(rolling).mean().shift(1)
@@ -13,7 +13,21 @@ def get_data_ticker(ticker, period='5y', rolling=1):
     data_hist['prev-day-3'] = data_hist['Close'].rolling(rolling).mean().shift(3)
     data_hist['mm_5'] = data_hist['Close'].rolling(5).mean()
     data_hist['mm_21'] = data_hist['Close'].rolling(21).mean()
-    data_hist = data_hist.dropna()
+    if dropna:
+        data_hist = data_hist.dropna()
+    data_hist['tomorrow'] = data_hist['Close'].rolling(rolling).mean().shift(-1)
+
+    return data_hist
+
+def prepare_new_record(df, new_record, rolling=1):
+    data_orig = pd.DataFrame({'Close': new_record})
+    data_hist = pd.concat([df,data_orig])
+    data_hist = pd.DataFrame(data_orig['Close'])
+    data_hist['prev-day-1'] = data_hist['Close'].rolling(rolling).mean().shift(1)
+    data_hist['prev-day-2'] = data_hist['Close'].rolling(rolling).mean().shift(2)
+    data_hist['prev-day-3'] = data_hist['Close'].rolling(rolling).mean().shift(3)
+    data_hist['mm_5'] = data_hist['Close'].rolling(5).mean()
+    data_hist['mm_21'] = data_hist['Close'].rolling(21).mean()
     data_hist['tomorrow'] = data_hist['Close'].rolling(rolling).mean().shift(-1)
 
     return data_hist
@@ -23,6 +37,12 @@ def dias_uteis_entre_datas(start_date,end_date):
     date_range = pd.date_range(start=start_date, end=end_date, freq='B')
     date_list = date_range.strftime('%Y-%m-%d').tolist()
     return date_list
+
+# %%
+def gerar_dias_uteis(qtd_dias_uteis, offset=0):
+    date_range = pd.bdate_range(start=pd.Timestamp.today(), periods=qtd_dias_uteis+offset)
+    date_list = date_range.strftime('%Y-%m-%d').tolist()
+    return date_list[offset:]
 
 # %%
 def decompor_sinal(y, period, two_sided=False):
