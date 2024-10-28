@@ -6,6 +6,7 @@ import numpy as np
 
 # %%
 def get_data_ticker(ticker, period='5y', rolling=1, dropna=True):
+    # Baixar dados de fechamento
     data_orig = yf.download(ticker, period=period)
     data_hist = pd.DataFrame(data_orig['Close'])
     data_hist['prev-day-1'] = data_hist['Close'].rolling(rolling).mean().shift(1)
@@ -13,6 +14,16 @@ def get_data_ticker(ticker, period='5y', rolling=1, dropna=True):
     data_hist['prev-day-3'] = data_hist['Close'].rolling(rolling).mean().shift(3)
     data_hist['mm_5'] = data_hist['Close'].rolling(5).mean()
     data_hist['mm_21'] = data_hist['Close'].rolling(21).mean()
+    # IRF
+    delta = data_hist['Close'].diff(1)  # Diferença entre os dias
+    gain = delta.where(delta > 0, 0)  # Ganhos
+    loss = -delta.where(delta < 0, 0)  # Perdas
+    avg_gain = gain.rolling(window=14, min_periods=1).mean()  # Média de ganhos
+    avg_loss = loss.rolling(window=14, min_periods=1).mean()  # Média de perdas
+    rs = avg_gain / avg_loss  # Cálculo do RS (força relativa)
+    rsi = 100 - (100 / (1 + rs))  # Cálculo do RSI
+    data_hist['RSI_14'] = rsi  # Adicionar coluna de RSI
+
     if dropna:
         data_hist = data_hist.dropna()
     data_hist['tomorrow'] = data_hist['Close'].rolling(rolling).mean().shift(-1)
@@ -29,8 +40,17 @@ def prepare_new_record(df, new_record, rolling=1):
     data_hist['mm_5'] = data_hist['Close'].rolling(5).mean()
     data_hist['mm_21'] = data_hist['Close'].rolling(21).mean()
     data_hist['tomorrow'] = data_hist['Close'].rolling(rolling).mean().shift(-1)
-
+    #IRF
+    delta = data_hist['Close'].diff(1)
+    gain = delta.where(delta > 0, 0)  # Ganhos
+    loss = -delta.where(delta < 0, 0)  # Perdas
+    avg_gain = gain.rolling(window=14, min_periods=1).mean()  # Média de ganhos
+    avg_loss = loss.rolling(window=14, min_periods=1).mean()  # Média de perdas
+    rs = avg_gain / avg_loss  # Cálculo do RS (força relativa)
+    rsi = 100 - (100 / (1 + rs))  # Cálculo do RSI
+    data_hist['RSI_14'] = rsi  # Adicionar coluna de RSI
     return data_hist
+# %%
 
 # %%
 def dias_uteis_entre_datas(start_date,end_date):
